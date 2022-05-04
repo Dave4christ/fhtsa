@@ -1,0 +1,654 @@
+---
+title: "Final Project"
+author: "David Adeyemo"
+date: "2/21/2022"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r}
+pkg <- c(
+  "janitor", "here", "tidyverse", "readr", "ggplot2", "knitr",
+  "mlr3", "plotly", "data.table", "tidyr", "shiny", "xgboost", "caret")
+
+install.packages(pkg)
+```
+
+
+```{r}
+library(tidyverse)
+library(readr)
+library(janitor)
+library(here)
+```
+
+# The 2010 Data
+
+```{r}
+read.csv(
+  here("Data", "FARS2010/ACCIDENT.CSV"), sep = ",",
+  header = TRUE
+  ) %>%
+  clean_names() -> accident_2010
+save(accident_2010, file = "Data/FARS2010/accident_2010.RData")
+
+read.csv(
+  here("Data", "FARS2010/VEHICLE.CSV"), sep = ",",
+  header = TRUE
+  ) %>%
+  clean_names() -> vehicle_2010
+save(vehicle_2010, file = "Data/FARS2010/vehicle_2010.RData")
+
+read.csv(
+  here("Data", "FARS2010/PERSON.CSV"), sep = ",",
+  header = TRUE
+  ) %>%
+  clean_names() -> person_2010 
+save(person_2010, file = "Data/FARS2010/person_2010.RData")
+
+read.csv(
+  here("Data", "FARS2010/ACC_AUX.CSV"), sep = ",",
+  header = TRUE
+  ) %>%
+  clean_names() -> acc_aux_2010 
+save(acc_aux_2010, file = "Data/FARS2010/acc_aux_2010.RData")
+
+read.csv(
+  here("Data", "FARS2010/CEVENT.CSV"), sep = ",",
+  header = TRUE
+  ) %>%
+  clean_names() -> cevent_2010 
+save(cevent_2010, file = "Data/FARS2010/cevent_2010.RData")
+
+read.csv(
+  here("Data", "FARS2010/DISTRACT.CSV"), sep = ",",
+  header = TRUE
+  ) %>%
+  clean_names() -> distract_2010 
+save(distract_2010, file = "Data/FARS2010/distract_2010.RData")
+
+read.csv(
+  here("Data", "FARS2010/DRIMPAIR.CSV"), sep = ",",
+  header = TRUE
+  ) %>%
+  clean_names() -> drimpair_2010 
+save(drimpair_2010, file = "Data/FARS2010/drimpair_2010.RData")
+
+read.csv(
+  here("Data", "FARS2010/FACTOR.CSV"), sep = ",",
+  header = TRUE
+  ) %>%
+  clean_names() -> factor_2010 
+save(factor_2010, file = "Data/FARS2010/factor_2010.RData")
+
+read.csv(
+  here("Data", "FARS2010/MANEUVER.CSV"), sep = ",",
+  header = TRUE
+  ) %>%
+  clean_names() -> maneuver_2010 
+save(maneuver_2010, file = "Data/FARS2010/maneuver_2010.RData")
+
+read.csv(
+  here("Data", "FARS2010/MIACC.CSV"), sep = ",",
+  header = TRUE
+  ) %>%
+  clean_names() -> miacc_2010 
+save(miacc_2010, file = "Data/FARS2010/miacc_2010.RData")
+
+read.csv(
+  here("Data", "FARS2010/MIDRVACC.CSV"), sep = ",",
+  header = TRUE
+  ) %>%
+  clean_names() -> midrvacc_2010 
+save(midrvacc_2010, file = "Data/FARS2010/midrvacc_2010.RData")
+
+read.csv(
+  here("Data", "FARS2010/MIPER.CSV"), sep = ",",
+  header = TRUE
+  ) %>%
+  clean_names() -> miper_2010 
+save(miper_2010, file = "Data/FARS2010/miper_2010.RData")
+
+read.csv(
+  here("Data", "FARS2010/NMCRASH.CSV"), sep = ",",
+  header = TRUE
+  ) %>%
+  clean_names() -> nmcrash_2010 
+save(nmcrash_2010, file = "Data/FARS2010/nmcrash_2010.RData")
+
+read.csv(
+  here("Data", "FARS2010/NMIMPAIR.CSV"), sep = ",",
+  header = TRUE
+  ) %>%
+  clean_names() -> nmimpair_2010 
+save(nmimpair_2010, file = "Data/FARS2010/nmimpair_2010.RData")
+
+read.csv(
+  here("Data", "FARS2010/NMPRIOR.CSV"), sep = ",",
+  header = TRUE
+  ) %>%
+  clean_names() -> nmprior_2010 
+save(nmprior_2010, file = "Data/FARS2010/nmprior_2010.RData")
+
+read.csv(
+  here("Data", "FARS2010/PARKWORK.CSV"), sep = ",",
+  header = TRUE
+  ) %>%
+  clean_names() -> parkwork_2010 
+save(parkwork_2010, file = "Data/FARS2010/parkwork_2010.RData")
+
+read.csv(
+  here("Data", "FARS2010/PER_AUX.CSV"), sep = ",",
+  header = TRUE
+  ) %>%
+  clean_names() -> per_aux_2010 
+save(per_aux_2010, file = "Data/FARS2010/per_aux_2010.RData")
+
+read.csv(
+  here("Data", "FARS2010/SAFETYEQ.CSV"), sep = ",",
+  header = TRUE
+  ) %>%
+  clean_names() -> safetyeq_2010 
+save(safetyeq_2010, file = "Data/FARS2010/safetyeq_2010.RData")
+
+read.csv(
+  here("Data", "FARS2010/VEH_AUX.CSV"), sep = ",",
+  header = TRUE
+  ) %>%
+  clean_names() -> veh_aux_2010 
+save(veh_aux_2010, file = "Data/FARS2010/veh_aux_2010.RData")
+
+read.csv(
+  here("Data", "FARS2010/VEVENT.CSV"), sep = ",",
+  header = TRUE
+  ) %>%
+  clean_names() -> vevent_2010 
+save(vevent_2010, file = "Data/FARS2010/vevent_2010.RData")
+
+read.csv(
+  here("Data", "FARS2010/VIOLATN.CSV"), sep = ",",
+  header = TRUE
+  ) %>%
+  clean_names() -> violatn_2010 
+save(violatn_2010, file = "Data/FARS2010/violatn_2010.RData")
+
+read.csv(
+  here("Data", "FARS2010/VISION.CSV"), sep = ",",
+  header = TRUE
+  ) %>%
+  clean_names() -> vision_2010 
+save(vision_2010, file = "Data/FARS2010/vision_2010.RData")
+
+read.csv(
+  here("Data", "FARS2010/VSOE.CSV"), sep = ",",
+  header = TRUE
+  ) %>%
+  clean_names() -> vsoe_2010 
+save(vsoe_2010, file = "Data/FARS2010/vsoe_2010.RData")
+```
+
+Now to merge all the files for 2010. But first, how can we figure out what column names are identical in the dataframes, since that will have to be used to merge the files?
+
+```{r}
+intersect(
+  colnames(acc_aux_2010), 
+  colnames(accident_2010)
+  )
+
+ac_a2010 <- acc_aux_2010 %>% 
+  left_join(
+    accident_2010,
+    by = c("year", "state", "st_case", "county", "fatals")
+  )
+```
+```{r}
+intersect(
+  colnames(ac_a2010),
+  colnames(cevent_2010)
+)
+
+ac_a2010 <- ac_a2010 %>% 
+  left_join(
+    cevent_2010,
+    by = c("state", "st_case")
+  )
+```
+```{r}
+intersect(
+  colnames(ac_a2010),
+  colnames(distract_2010)
+)
+
+ac_a2010 <- ac_a2010 %>% 
+  left_join(
+    distract_2010,
+    by = c("state", "st_case")
+  )
+```
+```{r}
+intersect(
+  colnames(ac_a2010),
+  colnames(drimpair_2010)
+)
+
+ac_a2010 <- ac_a2010 %>% 
+  left_join(
+    drimpair_2010,
+    by = c("state", "st_case", "veh_no")
+  )
+```
+```{r}
+intersect(
+  colnames(ac_a2010),
+  colnames(factor_2010)
+)
+
+ac_a2010 <- ac_a2010 %>% 
+  left_join(
+    factor_2010,
+    by = c("state", "st_case", "veh_no")
+  )
+```
+```{r}
+intersect(
+  colnames(ac_a2010),
+  colnames(maneuver_2010)
+)
+
+ac_a2010 <- ac_a2010 %>% 
+  left_join(
+    maneuver_2010,
+    by = c("state", "st_case")
+  )
+```
+```{r}
+intersect(
+  colnames(ac_a2010),
+  colnames(miacc_2010)
+)
+
+ac_a2010 <- ac_a2010 %>% 
+  left_join(
+    miacc_2010,
+    by = c("st_case")
+  )
+```
+```{r}
+intersect(
+  colnames(ac_a2010),
+  colnames(midrvacc_2010)
+)
+
+ac_a2010 <- ac_a2010 %>% 
+  left_join(
+    midrvacc_2010,
+    by = c("st_case", "a1", "a2", "a3",
+           "a4", "a5", "a6", "a7", "a8", "a9", "a10")
+  )
+```
+```{r}
+intersect(
+  colnames(ac_a2010),
+  colnames(miper_2010)
+)
+
+ac_a2010 <- ac_a2010 %>% 
+  left_join(
+    miper_2010,
+    by = c("st_case")
+  )
+```
+```{r}
+intersect(
+  colnames(ac_a2010),
+  colnames(nmcrash_2010)
+)
+
+ac_a2010 <- ac_a2010 %>% 
+  left_join(
+    nmcrash_2010,
+    by = c("state", "st_case", "veh_no", "per_no")
+  )
+```
+```{r}
+intersect(
+  colnames(ac_a2010),
+  colnames(nmimpair_2010)
+)
+
+ac_a2010 <- ac_a2010 %>% 
+  left_join(
+    nmimpair_2010,
+    by = c("state", "st_case", "veh_no", "per_no")
+  )
+```
+```{r}
+intersect(
+  colnames(ac_a2010),
+  colnames(nmprior_2010)
+)
+
+ac_a2010 <- ac_a2010 %>% 
+  left_join(
+    nmprior_2010,
+    by = c("state", "st_case", "veh_no", "per_no")
+  )
+```
+```{r}
+intersect(
+  colnames(ac_a2010),
+  colnames(parkwork_2010)
+)
+
+ac_a2010 <- ac_a2010 %>% 
+  left_join(
+    parkwork_2010,
+    by = c("state", "st_case", "veh_no")
+  )
+```
+```{r}
+intersect(
+  colnames(ac_a2010),
+  colnames(per_aux_2010)
+)
+
+ac_a2010 <- ac_a2010 %>% 
+  left_join(
+    per_aux_2010,
+    by = c("year", "st_case", "veh_no", "per_no")
+  )
+```
+```{r}
+intersect(
+  colnames(ac_a2010),
+  colnames(person_2010)
+)
+
+ac_a2010 <- ac_a2010 %>% 
+  left_join(
+    person_2010,
+    by = c("state", "st_case", "county", "ve_forms", "day",
+           "month", "hour", "minute", "road_fnc", "harm_ev",
+           "man_coll", "sch_bus", "veh_no", "per_no")
+  )
+```
+```{r}
+intersect(
+  colnames(ac_a2010),
+  colnames(safetyeq_2010)
+)
+
+ac_a2010 <- ac_a2010 %>% 
+  left_join(
+    safetyeq_2010,
+    by = c("state", "st_case", "veh_no", "per_no")
+  )
+```
+```{r}
+intersect(
+  colnames(ac_a2010),
+  colnames(veh_aux_2010)
+)
+
+ac_a2010 <- ac_a2010 %>% 
+  left_join(
+    veh_aux_2010,
+    by = c("year", "st_case", "veh_no")
+  )
+```
+```{r}
+intersect(
+  colnames(ac_a2010),
+  colnames(vehicle_2010)
+)
+
+ac_a2010 <- ac_a2010 %>% 
+  left_join(
+    vehicle_2010,
+    by = c("state", "st_case", "ve_forms", "day", "month", "hour",
+           "minute", "harm_ev", "man_coll", "veh_no", "make", "mak_mod",
+           "body_typ", "mod_year", "vintype", "vinmake", "vina_mod",
+           "vin_bt", "vinmodyr", "vin_lngt", "vin_wgt", "wgtcd_tr",
+           "whlbs_lg", "whlbs_sh", "ser_tr", "fuelcode", "mcycl_ds",
+           "tow_veh", "spec_use", "emer_use", "rollover", "impact1",
+           "impact2", "fire_exp"
+           )
+  )
+```
+```{r}
+intersect(
+  colnames(ac_a2010),
+  colnames(vevent_2010)
+)
+
+ac_a2010 <- ac_a2010 %>% 
+  left_join(
+    vevent_2010,
+    by = c("state", "st_case", "eventnum", "vnumber1", "aoi1", "soe",
+           "vnumber2", "aoi2", "veh_no")
+  )
+```
+```{r}
+intersect(
+  colnames(ac_a2010),
+  colnames(violatn_2010)
+)
+
+ac_a2010 <- ac_a2010 %>% 
+  left_join(
+    violatn_2010,
+    by = c("state", "st_case", "veh_no")
+  )
+```
+
+```{r}
+intersect(
+  colnames(ac_a2010),
+  colnames(vision_2010)
+)
+
+ac_a2010 <- ac_a2010 %>% 
+  left_join(
+    vision_2010,
+    by = c("state", "st_case", "veh_no")
+  )
+```
+```{r}
+intersect(
+  colnames(ac_a2010),
+  colnames(vsoe_2010)
+)
+
+ac_a2010 <- ac_a2010 %>% 
+  left_join(
+    vsoe_2010,
+    by = c("state", "st_case", "soe", "veh_no", "veventnum")
+  )
+```
+
+ac_a2010 is a combination of all the data files in 2010
+
+```{r}
+save(ac_a2010, file = "Data/ac_a2010.RData")
+```
+
+# Just the accident, person, vehicle file
+
+```{r}
+intersect(
+  colnames(accident_2010), 
+  colnames(person_2010)
+  )
+
+accident_2010 %>%
+  left_join(
+    person_2010, 
+    by = c(
+      "state", "st_case", "ve_forms", "county", "day",
+      "month", "hour", "minute", "road_fnc", "harm_ev",
+      "man_coll", "sch_bus"
+      )
+    ) -> ap2010 
+
+intersect(
+  colnames(ap2010), 
+  colnames(vehicle_2010)
+  )
+
+ap2010 %>%
+  left_join(
+    vehicle_2010,
+    by = c(
+      "state", "st_case", "ve_forms", "day", "month", "hour",
+      "minute", "harm_ev", "man_coll", "veh_no", "make",
+      "mak_mod", "body_typ", "mod_year", "vintype", "vinmake",
+      "vina_mod", "vin_bt", "vinmodyr", "vin_lngt", "vin_wgt",
+      "wgtcd_tr", "whlbs_lg", "whlbs_sh", "ser_tr", "fuelcode",
+      "mcycl_ds", "tow_veh", "spec_use", "emer_use", "rollover",
+      "impact1", "impact2", "fire_exp"
+      )
+    ) -> apv_2010
+
+save(apv_2010, file = "Data/apv_2010.RData")
+
+```
+
+Let us add the state abbreviations and state names. We can use the `states` dataframe in the `urbnmapr` package. But we will have to convert our state variable into state_fips first, and have it be in the character format.
+
+```{r}
+library(urbnmapr)
+data(states)
+names(states)
+
+states %>%
+  distinct(
+    state_fips, state_abbv, state_name
+    ) -> stdf
+
+apv_2010 %>%
+  mutate(
+    state_fips = stringr::str_pad(
+      state, width = 2, side = "left", pad = "0")
+    ) %>%
+  relocate(state, state_fips, state_abbv, state_name) %>%
+  select(-state) -> apv_2010
+
+apv_2010 %>%
+  left_join(
+    stdf,
+    by = "state_fips"
+    ) -> apv_2010
+```
+
+Now, what was the date and time of the accident? Well, to construct that detail we will have to create a new `date_time` variable in two pieces, first the date, and then the time. 
+
+```{r}
+apv_2010 %>%
+  mutate(
+    date = paste(year, month, day, sep = "-"),
+    time = paste(hour, minute, 0, sep = "-")
+    ) %>%
+  relocate(
+    year, month, day, date, hour, minute, time
+    ) -> apv_2010
+```
+
+Now we will combine date and time, and then format it as a date-time field so R will know what it is and no treat it as a number or a character string. 
+
+```{r}
+apv_2010 %>%
+  mutate(
+    date_time = paste(date, time, sep = ":"),
+    date_time = lubridate::ymd_hms(date_time)
+    ) %>%
+  relocate(date_time) -> apv_2010
+```
+
+Now we can drop the original columns since `date_time` contains all the information in a single column.
+
+```{r}
+apv_2010 %>%
+  select(
+    -c(year, month, day, date, hour, minute, time)
+    ) -> apv_2010
+```
+
+What about labeling the `day_week`?
+
+```{r}
+apv_2010 %>%
+  mutate(
+    day_of_week = lubridate::wday(
+      date_time, 
+      abbr = FALSE, 
+      label = TRUE
+      )
+    ) %>%
+  relocate(
+    date_time, day_of_week
+    ) %>%
+  select(
+    -c(day_week)
+    ) -> apv_2010
+```
+
+Labeling some of the other variables?
+
+```{r}
+apv_2010 %>%
+  mutate(
+    route = case_when(
+      route == 1 ~ "Interstate",
+      route == 2 ~ "U.S. Highway",
+      route == 3 ~ "State Highway",
+      route == 4 ~ "County Highway",
+      route == 5 ~ "Local Street - Township",
+      route == 6 ~ "Local Street - Municipality",
+      route == 7 ~ "Local Street - Frontage",
+      route == 8 ~ "Other",
+      route == 9 ~ "Unknown"
+      ),
+    sch_bus = case_when(
+      sch_bus == 0 ~ "School Bus Not Involved",
+      sch_bus == 1 ~ "School Bus Involved"
+      )
+    ) -> apv_2010 
+
+save(apv_2010, file = "Data/apv_2010.RData")
+```
+
+Now the rest of the variables would be labeled as needed. 
+
+Of course, you could wait until you have all the yearly files combined into a single one and then label the variables of interest. 
+
+# The 2019 Data
+
+```{r}
+read.csv(
+  here("Data", "FARS2019/ACCIDENT.CSV"), sep = ",",
+  header = TRUE
+  ) %>%
+  clean_names() -> accident_2019
+
+read.csv(
+  here("Data", "FARS2019/VEHICLE.CSV"), sep = ",",
+  header = TRUE
+  ) %>%
+  clean_names() -> vehicle_2019
+
+read.csv(
+  here("Data", "FARS2019/PERSON.CSV"), sep = ",",
+  header = TRUE
+  ) %>%
+  clean_names() -> person_2019
+
+```
+
+
+
+
+
+
+
+

@@ -1,0 +1,865 @@
+---
+title: "fars2020"
+author: "David Adeyemo"
+date: "3/8/2022"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(readr)
+library(janitor)
+library(here)
+library(urbnmapr)
+```
+#2020 data
+
+```{r}
+read.csv(
+  here("Data", "FARS2020/ACCIDENT.CSV"), sep = ",",
+  header = TRUE
+  ) %>%
+  clean_names() -> accident_2020
+
+read.csv(
+  here("Data", "FARS2020/VEHICLE.CSV"), sep = ",",
+  header = TRUE
+  ) %>%
+  clean_names() -> vehicle_2020
+
+read.csv(
+  here("Data", "FARS2020/PERSON.CSV"), sep = ",",
+  header = TRUE
+  ) %>%
+  clean_names() -> person_2020
+```
+```{r}
+accident_2020 %>% 
+  select(
+    1, 2:4, 7, 8, 11, 13, 15, 17, 19, 20, 22, 24, 26, 28,
+    30, 31, 38, 40, 42, 44, 46, 48, 51, 52, 54, 56, 58, 62,
+    64, 66, 72, 74, 76, 78, 80, 81
+  ) -> accident_2020
+```
+```{r}
+person_2020 %>% 
+  select(
+    1, 3:5, 8, 9, 11, 13, 15, 19, 21, 23, 25, 27, 29, 30, 32, 34,
+    36, 38, 40, 42, 44, 46, 48, 50, 52, 54, 56, 58, 60, 62, 64, 66,
+    68, 70, 72, 74, 76, 78, 84, 86, 88, 90, 92, 94, 96, 98, 104, 106,
+    108
+  ) -> person_2020
+```
+```{r}
+vehicle_2020 %>% 
+  select(
+    1, 3:6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 31, 33,
+    35, 37, 51, 65, 73,75, 77, 79, 81, 83, 85, 87, 89, 91, 93, 95,
+    97, 99, 101, 103, 105, 107, 109, 111, 113, 115, 117, 119, 121,
+    123, 125, 127, 129, 131, 133, 135, 137, 139, 137, 143, 145, 147,
+    149, 151, 153, 155, 157, 159, 161, 163, 165, 167, 169, 171, 173,
+    175, 176
+  ) -> vehicle_2020
+```
+```{r}
+intersect(
+  colnames(accident_2020), colnames(person_2020)
+)
+accident_2020 %>% 
+  left_join(
+    person_2020, by = c(
+      "state", "st_case", "county", "day", "month", "hour",
+      "minute", "harm_ev", "man_coll", "sch_bus"
+      )
+  ) -> accident_person_2020
+```
+```{r}
+intersect(
+  colnames(accident_person_2020), colnames(vehicle_2020)
+)
+
+accident_person_2020 %>% 
+  left_join(
+    vehicle_2020, 
+    by = c("state", "st_case", "day", "month", "hour", "minute",
+           "harm_ev", "man_coll", "ve_forms", "veh_no", "make",
+           "body_typ", "mod_year", "tow_veh", "spec_use",
+           "emer_use", "rollover", "impact1", "fire_exp")
+  ) -> apv_2020
+```
+```{r}
+save(apv_2020, file = "Data/FARS2020/apv_2020.RData")
+```
+let us add state abbreviations and state names by using the urbnmapr package
+
+```{r}
+require(devtools)
+devtools::install_github("UrbanInstitute/urbnmapr", force = TRUE)
+library(urbnmapr)
+data(states)
+colnames(states)
+```
+```{r}
+states %>%
+  distinct(
+    state_fips, state_abbv, state_name
+    ) -> state.df
+
+apv_2020 %>%
+  mutate(
+    state_fips = stringr::str_pad(
+      state, width = 2, side = "left", pad = "0")
+    ) %>% relocate(
+     state, state_fips 
+    ) -> apv_2020
+
+apv_2020 %>% 
+  left_join(
+    state.df, by = "state_fips"
+  ) -> apv_2020
+
+apv_2020 %>% 
+  relocate(
+    state_name, state_abbv, .after = state_fips
+    ) %>% select(
+      -c(state, statename)
+    ) -> apv_2020
+
+```
+```{r}
+apv_2020 %>% 
+  mutate(
+    date = paste(year, month, day, sep = "-"),
+    time = paste(hour, minute, 0, sep = "-")
+  ) %>% relocate(
+    date, time, year, month, day, hour, minute
+  ) -> apv_2020
+```
+```{r}
+apv_2020 %>% 
+  mutate(
+    date_time = paste(date, time, sep = ":"),
+    date_time = lubridate::ymd_hms(date_time)
+  ) %>% relocate(
+    date_time
+  ) -> apv_2020
+```
+```{r}
+apv_2020 %>% 
+  select(
+    -c(year, month, day, date, hour, minute, time)
+  ) -> apv_2020
+
+apv_2020 %>% 
+  relocate(
+    date_time, .after = st_case
+  ) -> apv_2020
+```
+```{r}
+apv_2020 %>% 
+  mutate(day_of_week = lubridate::wday(
+    date_time,
+    label = TRUE,
+    abbr = FALSE
+  ) 
+  )%>% relocate(
+    date_time, day_of_week
+  ) %>% select(
+    -c(day_week)
+  ) -> apv_2020
+
+apv_2020 <- apv_2020 %>% 
+  relocate(
+    day_of_week, date_time, .after = st_case
+  )
+```
+```{r}
+apv_2020 %>%
+  mutate(
+    route = case_when(
+      route == 1 ~ "Interstate",
+      route == 2 ~ "U.S. Highway",
+      route == 3 ~ "State Highway",
+      route == 4 ~ "County Highway",
+      route == 5 ~ "Local Street - Township",
+      route == 6 ~ "Local Street - Municipality",
+      route == 7 ~ "Local Street - Frontage",
+      route == 8 ~ "Other",
+      route == 9 ~ "Unknown"
+      ),
+    sch_bus = case_when(
+      sch_bus == 0 ~ "School Bus Not Involved",
+      sch_bus == 1 ~ "School Bus Involved"
+      )
+    ) -> apv_2020
+```
+```{r}
+save(apv_2020, file = "Data/FARS2020/apv_2020.RData")
+```
+```{r}
+apv_2020 %>%
+mutate(
+county_code = stringr::str_pad(
+county,
+side = "left",
+width = 3,
+pad = "0"
+),
+geoid = paste(
+state_fips, county_code, sep = ""
+)
+) -> apv_2020_1
+
+apv_2020_1 %>%
+  relocate(
+    county, county_code, geoid
+  ) -> apv_2020_1
+```
+
+```{r}
+library(tidycensus)
+census_api_key(
+  "b8ff6f76c28286356459d9cb428c3f5f141bd4f8", install = TRUE)
+get_acs(
+  "county", table = "B00001", geometry = TRUE, year = 2010
+  ) %>% clean_names() -> tcdf10
+```
+```{r}
+apv_2020_1 %>% 
+  left_join(
+    tcdf10, by = "geoid"
+  ) -> apv_2020_1
+```
+```{r}
+apv_2020_1 %>% 
+  relocate(
+    geoid, name, variable, estimate, geometry
+  ) -> apv_2020_1
+
+apv_2020_1 %>% 
+  select(
+    -c(variable, estimate, geometry, county, county_code)
+  ) -> apv_2020_1
+```
+```{r}
+apv_2020_1 %>% separate(
+  name, 
+  into = c("county_name", "statename"),
+  sep = ", ", remove = FALSE
+) %>% select(
+  -c(name, statename)
+)-> apv_2020_1
+```
+
+```{r}
+rename(
+  apv_2020_1, county_fips = geoid
+  ) -> apv_2020_1
+```
+```{r}
+apv_2020_1 %>% relocate(
+  county_fips, county_name, .after = state_abbv
+) -> apv_2020_1
+```
+```{r}
+library(readxl)
+county_cityname <- read_excel("Data/gsa data/FRPP_GLC_United_StatesFeb102022.xlsx") %>% 
+  clean_names() 
+
+county_cityname %>% 
+  select(
+    state_name, city_code, state_code, city_name,
+  ) -> county_cityname
+```
+```{r}
+county_cityname %>% 
+  mutate(
+    state_name = stringr::str_to_title(state_name),
+    city_name = stringr::str_to_title(city_name),
+    ) -> county_cityname
+```
+```{r}
+apv_2020_1 %>% rename(
+  city_code = city
+) -> apv_2020_1
+
+apv_2020_1 %>% mutate(
+  city_code = stringr::str_pad(
+    city_code, side = "left",
+    width = 4, pad = "0"
+  )
+) -> apv_2020_1
+```
+
+```{r}
+county_cityname %>% 
+  mutate(
+    city_code = stringr::str_pad(
+      city_code, side = "left",
+      width = 4, pad = "0"
+    ) 
+    )%>% select(
+      -c(state_code)
+  
+  ) -> county_cityname
+```
+
+```{r}
+apv_2020_1 %>%
+  left_join(
+    county_cityname, by = c(
+      "state_name", "city_code"
+      )
+    ) -> apv_2020_2
+
+apv_2020_2 %>% 
+  relocate(
+    city_code, city_name, .after = county_name
+  ) -> apv_2020_2
+```
+```{r}
+save(apv_2020_2, file = "Data/FARS2020/apv_2020_2.RData")
+```
+```{r}
+apv_2020_2 %>%
+group_by(harm_ev) %>%
+count() %>%
+arrange(-n)
+```
+```{r}
+apv_2020_2 %>%
+mutate(
+harm = case_when(
+harm_ev == 12 ~ "Motor Vehicle in Transport",
+harm_ev == 8 ~ "Pedestrian",
+harm_ev == 1 ~ "Rollover/Overturn",
+harm_ev == 9 ~ "Pedalcyclist",
+harm_ev == 42 ~ "Tree (Standing Only)",
+harm_ev == 33 ~ "Curb",
+TRUE ~ "All Others"
+)
+) -> apv_2020_2
+```
+```{r}
+apv_2020_2 %>% 
+  mutate(
+    manner_of_collision = case_when(
+      man_coll == 0 ~ "Not Collision With Motor Vehicle in Transport",
+      man_coll == 6 ~ "Angle – Front-to-Side/Angle-Direction Not Specified",
+      man_coll == 2 ~ "Front-to-Front",
+      man_coll == 1 ~ "Front-to-Rear",
+      man_coll == 7 ~ "Sideswipe – Same Direction",
+      man_coll == 8 ~ "Sideswipe – Opposite Direction",
+      TRUE ~ "All Others"
+    ),
+    relation_to_junction = case_when(
+      reljct2 == 1 ~ "Non Junction",
+      reljct2 == 2 ~ "Intersection",
+      reljct2 == 3 ~ "Intersection Related",
+      reljct2 == 8 ~ "Driveway Access Related",
+      reljct2 == 18 ~ "Through Roadway",
+      reljct2 == 5 ~ "Entrance/Exit Ramp Related",
+      TRUE ~ "All Others"
+    )
+  ) -> apv_2020_2
+```
+```{r}
+apv_2020_2 %>% 
+  mutate(
+    national_highway_system = case_when(
+      nhs == 0 ~ "This Section Is Not on the National Highway System",
+      nhs == 1 ~ "This Section Is on the National Highway System",
+      nhs == 9 ~ "Unknown"
+    ),
+    special_jurisdiction = case_when(
+      sp_jur == 0 ~ "No Special Jurisdiction",
+      sp_jur == 3 ~ "Indian Reservation",
+      sp_jur == 9 ~ "Unknown",
+      sp_jur == 1 ~ "National Park Service",
+      sp_jur == 4 ~ "College/University Campus",
+      sp_jur == 2 ~ "Military",
+      TRUE ~ "All Others"
+    ),
+    type_of_intersection = case_when(
+      typ_int == 1 ~"Not An Intersection",
+      typ_int == 2 ~"Four-Way Intersection",
+      typ_int == 3 ~"T-Intersection",
+      typ_int == 4 ~"Y-Intersection",
+      typ_int == 7 ~"Five Point, or More",
+      typ_int == 6 ~ "Roundabout",
+      typ_int == 5 ~ "Traffic Circle",
+      typ_int == 10 ~ "L-Intersection",
+      TRUE ~ "All Others"
+    )
+  ) -> apv_2020_2
+```
+```{r}
+apv_2020_2 %>% 
+  select(
+    -c(harm_ev, man_coll, reljct2, nhs, sp_jur, typ_int)
+    ) -> apv_2020_2
+```
+```{r}
+apv_2020_2 %>% 
+  mutate(
+    work_zone = case_when(
+      wrk_zone == 0 ~ "None",
+      wrk_zone == 1 ~ "Construction",
+      wrk_zone == 4 ~ "Work Zone, Type Unknown",
+      wrk_zone == 2 ~ "Maintenance",
+      wrk_zone == 3 ~ "Utility",
+      TRUE ~ "All Others"
+    ),
+    relation_to_trafficway = case_when(
+      rel_road == 1 ~ "On Roadway",
+      rel_road == 4 ~ "On Roadside",
+      rel_road == 3 ~ "On Median",
+      rel_road == 2 ~ "On Shoulder",
+      rel_road == 5 ~ "Outside Trafficway",
+      TRUE ~ "All Others"
+    ),
+    weather_condition = case_when(
+      weather == 1 ~ "Clear",
+      weather == 10 ~ "Cloudy",
+      weather == 2 ~ "Rain",
+      weather == 98 ~ "Not Reported",
+      weather == 5 ~ "Fog, Smog, Smoke",
+      weather == 4 ~ "Snow",
+      TRUE ~ "All Others"
+    ),
+    functional_system = case_when(
+      func_sys == 1 ~ "Interstate",
+      TRUE ~ "All Others"
+    )
+  ) -> apv_2020_2
+
+apv_2020_2 %>% 
+  select(
+    -c(wrk_zone, rel_road, weather, func_sys )
+  ) -> apv_2020_2
+```
+```{r}
+apv_2020_2 %>% 
+  mutate(
+    veh_make = case_when(
+      make == 20 ~ "Chevrolet",
+      make == 12 ~ "Ford",
+      make == 49 ~ "Toyota",
+      make == 37 ~ "Honda",
+      make == 35 ~ "Nissan",
+      make == 7 ~ "Dodge",
+      TRUE ~ "All Others"
+    ), 
+    towing_veh = case_when(
+      tow_veh == 0 ~ "No Trailing Units",
+      tow_veh == 1 ~ "Yes, One Trailing Unit",
+      TRUE ~ "All Others"
+    ),
+    special_use = case_when(
+      spec_use == 0 ~ "No Special Use",
+      spec_use == 3 ~ "Vehicle Use as Other Bus",
+      spec_use == 1 ~ "Taxi",
+      spec_use == 5 ~ "Police",
+      TRUE ~ "All Others"
+    ),
+    Emergency_use = case_when(
+      emer_use == 0 ~ "Not Applicable",
+      emer_use == 9 ~ "Reported as Unknown",
+      emer_use == 5 ~ "Emegency warning",
+      TRUE ~ "All Others"
+    ),
+    area_of_impact = case_when(
+      impact1 == 12 ~ "Clock Points",
+      impact1 == 6 ~ "Clock Points",
+      impact1 == 0 ~ "Non-Collision",
+      impact1 == 9 ~ "Clock Points",
+      TRUE ~ "All Others"
+    ),
+    fire_occurrence = case_when(
+      fire_exp == 0 ~ "No or Not Reported",
+      fire_exp == 1 ~ "Yes",
+      TRUE ~ "All Others"
+    ),
+    gender = case_when(
+      sex == 1 ~ "Male",
+      sex == 2 ~ "Female",
+      sex == 9 ~ "Reported as Unknown",
+      sex == 8 ~ "Not Reported",
+      TRUE ~ "All Others"
+    ),
+    Person_role_in_crash = case_when(
+      per_typ == 1 ~ "Driver of a Motor Vehicle in Transport",
+      per_typ == 2 ~ "Passenger of a Motor Vehicle in Transport",
+      per_typ == 5 ~ "Pedestrian",
+      per_typ == 6 ~ "Bicyclist",
+      per_typ == 3 ~ "Occupant of a Motor Vehicle Not in Transport",
+      per_typ == 9 ~ "Unknown Occupant Type",
+      TRUE ~ "All Others"
+    ),
+    injury_severity = case_when(
+      inj_sev == 4 ~ "Fatal Injury",
+      inj_sev == 0 ~ "No Apparent Injury",
+      inj_sev == 3 ~ "Suspected Serious Injury",
+      inj_sev == 2 ~ "Suspected Minor Injury",
+      inj_sev == 1 ~ "Possible Injury",
+      inj_sev == 9 ~ "Unknown",
+      TRUE ~ "All Others"
+    ), 
+    seating_position = case_when(
+      seat_pos == 11 ~ "Front Seat - Left Driver Side",
+      seat_pos == 13 ~ "Front Seat - Right Passenger Side",
+      seat_pos ==  0 ~ "Not a Motor Vehicle Occupant",
+      seat_pos == 23 ~ "Second Seat - Right Side",
+      seat_pos == 21 ~ "Second Seat - Left Side",
+      seat_pos == 22 ~ "Second Seat - Middle",
+      TRUE ~ "All Others"
+    ),
+    air_bag_deployed = case_when(
+      air_bag == 20 ~ "Not Deployed",
+      air_bag == 8 ~ "Deployed - Combination",
+      air_bag == 9 ~ "Deployment - Unknown Location",
+      air_bag == 1 ~ "Deployed - Front",
+      air_bag == 97 ~ "Not a Motor Vehicle Occupant",
+      air_bag == 99 ~ "Deployment Unknown",
+      TRUE ~ "All Others"
+    ),
+    ejection_status = case_when(
+      ejection == 0 ~ "Not Ejected",
+      ejection == 8 ~ "Not Applicable",
+      ejection == 1 ~ "Totally Ejected",
+      ejection == 2 ~ "Partially Ejected",
+      TRUE ~ "All Others"
+    )
+  ) -> apv_2020_2
+
+apv_2020_2 %>% 
+  select(
+    -c(ejection, air_bag, seat_pos, inj_sev, per_typ, sex,
+       fire_exp, impact1, emer_use, spec_use, tow_veh, make,
+       body_typ, rollover, rest_use, rest_mis, ej_path)
+  ) -> apv_2020_2
+```
+```{r}
+apv_2020_2 %>% 
+  mutate(
+    alcohol_involvement = case_when(
+      drinking == 8 ~ "Not Reported",
+      drinking == 0 ~ "No",
+      drinking == 9 ~ "Reported as Unknown",
+      drinking == 1 ~ "Yes",
+      TRUE ~ "All Others"
+    ),
+    drug_involvement = case_when(
+      drugs == 8 ~ "Not Reported",
+      drugs == 0 ~ "No",
+      drugs == 9 ~ "Reported as Unknown",
+      drugs == 1 ~ "Yes",
+      TRUE ~ "All Others"
+    ),
+    death = case_when(
+      doa == 0 ~ "Not Applicable",
+      doa == 7 ~ "Died at Scene",
+      doa == 9 ~ "Unknown",
+      doa == 8 ~ "Died en Route",
+      TRUE ~ "All Others"
+    )
+  ) -> apv_2020_2
+
+apv_2020_2 %>% 
+  select(
+    -c(doa, drinking, drugs, milept, extricat, alc_det, alc_status,
+       atst_typ, alc_res, hospital, death_da, death_mo, death_yr,
+       death_hr,death_mn, death_tm, work_inj )
+  ) -> apv_2020_2
+```
+```{r}
+apv_2020_2 %>% 
+  mutate(
+    non_motorist_location = case_when(
+      location == 0 ~ "Occupant of a Motor Vehicle",
+      location == 11 ~ "On Roadway, Not in Marked Crosswalk/Intersection",
+      location == 1 ~ "At Intersection, In Marked Crosswalk",
+      location == 3 ~ "At Intersection, Not In Crosswalk",
+      location == 20 ~ "Shoulder/Roadside",
+      location == 13 ~ "Not at Intersection, Crosswalk Availabilty Unknown",
+      TRUE ~ "All Others"
+    ),
+    type_of_unit = case_when(
+      unittype == 1 ~"Motor Vehicle in Transport(Inside/Outside Trafficway",
+      TRUE ~ "All Others"
+    ),
+    hit_and_run = case_when(
+      hit_run == 0 ~ "No",
+      hit_run == 1 ~ "Yes",
+      TRUE ~ "All Others"
+    ),
+    haz_mat_involvement = case_when(
+      haz_inv == 1 ~ "No",
+      haz_inv == 2 ~ "Yes",
+      TRUE ~ "All Others"
+    ),
+    haz_mat_release = case_when(
+      haz_rel == 0 ~ "Not Applicable",
+      haz_rel == 1 ~ "No",
+      haz_rel == 2 ~ "Yes",
+      haz_rel == 8 ~ "Not Reported",
+      TRUE ~ "All Others"
+    ),
+    bus_service = case_when(
+      bus_use == 0 ~ "Not a Bus",
+      bus_use == 99 ~ "Unknown",
+      bus_use == 98 ~ "Not Reported",
+      bus_use == 6 ~ "Transit/Commuter",
+      bus_use == 1 ~ "School",
+      bus_use == 5 ~ "Charter/Tour",
+      TRUE ~ "All Others"
+    ),
+    travel_speed = case_when(
+      trav_sp == 998 ~ "Not Reported",
+      trav_sp == 999 ~ "Unknown",
+      trav_sp == 55 ~ "Reported Speed Up to 151 mph",
+      trav_sp == 0 ~ "Stopped Motor Vehicle in Transport",
+      trav_sp == 45 ~ "Reported Speed Up to 151 mph",
+      trav_sp == 70 ~"Reported Speed Up to 151 mph",
+      trav_sp == 60 ~"Reported Speed Up to 151 mph",
+      trav_sp == 65 ~ "Reported Speed Up to 151 mph",
+      trav_sp == 50 ~"Reported Speed Up to 151 mph",
+      TRUE ~ "All Others"
+    ),
+    extent_of_damage = case_when(
+      deformed == 6 ~ "Severe Damage",
+      deformed == 4 ~ "Moderate Damage",
+      deformed == 8 ~ "Not Reported",
+      deformed == 2 ~ "Minor Damage",
+      deformed == 0 ~ "No Damage",
+      deformed == 9 ~ "Unknown",
+      TRUE ~ "All Others"
+    )
+  ) -> apv_2020_2
+
+apv_2020_2 %>% 
+  select(
+    -c(deformed, trav_sp, bus_use, haz_inv, haz_rel, hit_run, unittype,
+       location, hispanic, reg_stat, owner, model, mak_mod.y, underide,
+       rolinloc, towed, m_harm, rail, mak_mod.x)
+  ) -> apv_2020_2
+```
+```{r}
+apv_2020_2 %>% mutate(
+    driver_presence = case_when(
+      dr_pres == 1 ~ "Yes",
+      dr_pres == 0 ~ "No",
+      dr_pres == 9 ~ "Unknown",
+      TRUE ~ "All Others"
+    )
+  ) -> apv_2020_2
+```
+```{r}
+apv_2020_2 %>% 
+  select(
+    -c(l_state, dr_zip, l_status, l_type, cdl_stat, l_endors, l_compl,
+       l_restri, dr_hgt, dr_wgt, prev_acc, prev_sus1, prev_sus2,
+       prev_sus3, prev_dwi, prev_spd, prev_oth, first_mo, first_yr,
+       last_mo, vspd_lim)
+  ) -> apv_2020_2
+```
+```{r}
+apv_2020_2 %>% mutate(
+  speed_related = case_when(
+    speedrel == 0 ~ "No",
+    speedrel == 3 ~ "Yes, Exceeded Speed Limit",
+    speedrel == 4 ~ "Yes, Too Fast For Conditions",
+    speedrel == 9 ~ "Reported as Unknown",
+    speedrel == 5 ~ "Yes, Specifics Unknown"
+  ),
+  trafficway_description = case_when(
+    vtrafway == 1 ~ "Two-Way, Not Divided",
+    vtrafway == 2 ~ "Two-Way, Divided, Unprotected Median",
+    vtrafway == 3 ~ "Two-Way, Divided, Positive Median Barrier",
+    vtrafway == 5 ~ "Two-Way, Not Divided With a Continuous Left-Turn Lane",
+    vtrafway == 4 ~ "One-Way TrafficWay",
+    vtrafway == 6 ~ "Entrance/Exit Ramp",
+    TRUE ~ "All Others"
+  ),
+  total_lanes_in_roadway = case_when(
+    vnum_lan == 2 ~ "Two Lanes",
+    vnum_lan == 3 ~ "Three Lanes",
+    vnum_lan == 4 ~ "Four Lanes",
+    vnum_lan == 5 ~ "Five Lanes",
+    vnum_lan == 6 ~ "Six Lanes",
+    vnum_lan == 7 ~ "Seven or More Lanes",
+    TRUE ~ "All Others"
+  )
+) -> apv_2020_2
+
+apv_2020_2 %>% 
+  select(
+    -c(vnum_lan, vtrafway, speedrel)
+  ) -> apv_2020_2
+```
+```{r}
+apv_2020_2 %>% 
+  mutate(
+    roadway_alignment = case_when(
+      valign == 1 ~ "Straight",
+      valign == 3 ~ "Curve Left",
+      valign == 2 ~ "Curve Right",
+      valign == 8 ~ "Not Reported",
+      valign == 4 ~ "Curve - Unknown Direction",
+      valign == 0 ~ "Non-Traffic or Driveway Access",
+      TRUE ~ "All Others"
+    ),
+    roadway_grade = case_when(
+      vprofile == 1 ~ "Level",
+      vprofile == 2 ~ "Grade, Unknown Slope",
+      vprofile == 8 ~ "Not Reported",
+      vprofile == 6 ~ "Downhill",
+      vprofile == 5 ~ "Uphill",
+      vprofile == 3 ~ "Hillcrest",
+      TRUE ~ "All Others"
+    ),
+    roadway_surface_type = case_when(
+      vpavetyp == 2 ~ "Blacktop, Bituminous, or Asphalt",
+      vpavetyp == 8 ~ "Not Reported",
+      vpavetyp == 1 ~ "Concrete",
+      vpavetyp == 9 ~ "Reported as Unknown",
+      vpavetyp == 4 ~ "Slag, Gravel or Stone",
+      vpavetyp == 0 ~ "Non-Trafficway or Driveway Access",
+      TRUE ~ "All Others"
+    ),
+    roadway_surface_condition = case_when(
+      vsurcond == 1 ~ "Dry",
+      vsurcond == 2 ~ "Wet",
+      vsurcond == 98 ~ "Not Reported",
+      vsurcond == 0 ~ "Non-Trafficeway Area",
+      vsurcond == 4 ~ "Ice/Frost",
+      vsurcond == 3 ~ "Snow",
+      TRUE ~ "All Others"
+    )
+  ) -> apv_2020_2
+
+apv_2020_2 %>% 
+  select(
+    -c(vsurcond, vpavetyp, vprofile, valign)
+  ) -> apv_2020_2
+```
+```{r}
+apv_2020_2 %>% 
+  mutate(
+    traffic_control_device = case_when(
+      vtrafcon == 0 ~ "No Controls",
+      vtrafcon == 3 ~ "Not Known If Pedestrian Signal",
+      vtrafcon == 97 ~ "Not Reported",
+      vtrafcon == 20 ~ "Stop Sign",
+      vtrafcon == 2 ~ "With Pedestrian Signal",
+      vtrafcon == 40 ~ "Warning Signs",
+      TRUE ~ "All Others"
+    ),
+    functionality_of_traffic_control = case_when(
+      vtcont_f == 0 ~ "No Controls",
+      vtcont_f == 3 ~ "Device Functioning Properly",
+      vtcont_f == 8 ~ "Not Reported",
+      vtcont_f == 9 ~ "Reported as Unknown",
+      TRUE ~ "All Others"
+    ),
+    pre_event_movement = case_when(
+      p_crash1 == 1 ~ "Going Straight",
+      p_crash1 == 14 ~ "Negotiating a Curve",
+      p_crash1 == 11 ~ "Turning Left",
+      p_crash1 == 5 ~ "Stopped in Trafficway",
+      p_crash1 == 15 ~ "Changing Lanes",
+      p_crash1 == 6 ~ "Passing or Overtaking Another Vehicle",
+      TRUE ~ "All Others"
+    ),
+    critical_event_precrash = case_when(
+      p_crash2 == 62 ~ "Other Motor vehicle Encroaching into Lane
+                        From Opposite Direction Over Left Lane Line",
+      p_crash2 == 80 ~ "Pedestrian in Roadway",
+      p_crash2 == 13 ~ "This Vehicle Traveling Off the Edge of The Road
+                        on The Right Side",
+      p_crash2 == 12 ~ "This Vehicle Traveling Off the Edge of The Road
+                        on The Left Side",
+      p_crash2 == 6 ~ "This Vehicle Loss of Control due to Traveling too
+                      Fast For Conditions",
+      p_crash2 == 53 ~ "Other Motor Vehicle in Lane Traveling in Same
+                        Direction With Higher Speed",
+      p_crash2 == 10 ~ "This Vehicle Traveling Over the Lane Side on
+                        Left Side of Travel Lane",
+      TRUE ~ "All Others"
+    ),
+    pre_impact_stability = case_when(
+      pcrash4 == 1 ~ "Tracking",
+      pcrash4 == 9 ~ "Precrash Stability Unknown",
+      pcrash4 == 2~"Skidding Longitudinally - Rotation Less than 30 Degree",
+      pcrash4 == 4 ~ "Skidding Laterally - Counterclockwise Rotation",
+      pcrash4 == 3 ~ "Skidding Laterally - Clockwise Rotation",
+      TRUE ~ "All Others"
+    ),
+    pre_impact_location = case_when(
+      pcrash5 == 1 ~ "Stayed in Original Travel Lane",
+      pcrash5 == 4 ~ "Departed Roadway",
+      pcrash5 == 2 ~ "Stayed On Roadway, But Left Original Travel Lane",
+      pcrash5 ==3~"Stayed On Roadway, UnKnown if Left Original Travel Lane",
+      TRUE ~ "All Others"
+    ),
+    crash_type = case_when(
+      acc_type == 98 ~ "Other Crash Type",
+      acc_type == 13 ~ "Forward Impact - Pedestrian/Animal",
+      acc_type == 1 ~ "Right Roadside - Drive off Road",
+      acc_type == 6 ~ "Left Roadside - Drive off Road",
+      acc_type == 51 ~ "Head-On, Lateral Move(Going Straight)",
+      acc_type == 50 ~ "Head-on, Lateral Move(Left/Right)",
+      TRUE ~ "All Others"
+    ),
+    driver_drinking = case_when(
+      dr_drink == 0 ~ "Not Drinking",
+      dr_drink == 1 ~ "Drinking",
+      TRUE ~ "All Others"
+    )
+  ) -> apv_2020_2
+
+apv_2020_2 %>% 
+  select(
+    -c(dr_drink, acc_type, p_crash1, p_crash2, p_crash3, pcrash4,
+       pcrash5, vtcont_f, vtrafcon, arr_hour, arr_min, hosp_hr, hosp_mn)
+  ) -> apv_2020_2
+```
+```{r}
+apv_2020_2 %>%
+  rename(
+    no_of_vehicles_in_crash = ve_total,
+    no_of_person_not_in_vehicle = peds,
+    no_of_person_forms_submitted = persons
+  ) -> apv_2020_4
+```
+```{r}
+apv_2020_4 %>% 
+  rename(
+    no_of_fatalities = fatals,
+    no_of_drinkin_drivers = drunk_dr,
+    no_of_vehicle_forms = ve_forms,
+    no_assigned_to_each_vehicle = veh_no,
+    no_of_occupants = numoccs,
+    no_of_death = deaths
+  ) %>% select(
+    -c(dr_pres, reljct1name)
+  ) -> apv_2020_4
+```
+```{r}
+save(apv_2020_4, file = "Data/FARS2020/apv_2020_4.RData")
+```
+
+
+
+
+
+
+
+
+

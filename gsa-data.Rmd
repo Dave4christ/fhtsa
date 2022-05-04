@@ -1,0 +1,100 @@
+---
+title: "GSA City and County Codes"
+author: "Ani Ruhil"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(readxl)
+read_excel(
+  "Data/gsa data/FRPP_GLC_United_StatesFeb102022.xlsx"
+  ) %>%
+  janitor::clean_names() -> gsa 
+```
+
+The apv_2010 file has city and county in the numerical format (as integers) but gsa has city and county codes as characters. SO let us create city and county as numeric in gsa.
+
+```{r}
+gsa %>%
+  mutate(
+    city = as.integer(city_code),
+    county = as.integer(county_code)
+  ) -> gsa
+```
+
+We just need state_code, city and county codes and names, so let me select those and save as a separate data-set.
+
+```{r}
+gsa %>%
+  select(
+    state_code, county, county_name, city, city_name
+    ) -> gsa_sub
+```
+
+You see that the state_code is messed up, some values are "1" and others are "01" even though both are for Alabama. So what I will do is clean this up and save as state_fips and then drop state_code
+
+```{r}
+gsa_sub %>%
+  mutate(
+    state_fips = stringr::str_pad(
+      state_code, side = "left", width = 2, pad = "0"
+      )
+    ) %>%
+  select(-state_code) -> gsa_sub
+```
+
+
+Now we can left_join into the apv_2010 file.
+
+```{r}
+apv_2010 %>%
+  mutate(rowid = row_number()) %>%
+  left_join(
+    gsa_sub,
+    by = c("state_fips", "city", "county")
+    ) %>%
+  relocate(rowid, 1:3, county, county_name, city, city_name) -> test
+```
+
+When you do, you will see that the number of rows of data has increased. Why? Let us find these rows of data and see what is going on. 
+
+```{r}
+test %>%
+  group_by(rowid) %>%
+  mutate(
+    nobs = n()
+  ) -> test
+
+test %>%
+  filter(nobs == 2) -> testdups
+```
+
+If you look at testdups you see two city names for the same citycode, in NY, Queens county -- Flushing, and Middle Village 
+
+This is in the GSA data. So what we have to do is to drop one of these and I will drop Middle Village, and then do the left_join.
+
+```{r}
+gsa_sub %>%
+  filter(
+    city_name != "MIDDLE VILLAGE" 
+  ) -> gsa_sub2
+
+apv_2010 %>%
+  left_join(
+    gsa_sub2,
+    by = c("state_fips", "city", "county")
+    ) %>%
+  relocate(1:3, county, county_name, city, city_name) -> apv_2010
+
+save(apv_2010, file = "Data/apv_2010.RData")
+```
+
+
+
+

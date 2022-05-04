@@ -1,0 +1,812 @@
+---
+title: "Story Board"
+author: "David Adeyemo"
+date: "4/7/2022"
+output:
+  html_document: default
+  word_document: default
+  pdf_document: default
+editor_options:
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE,
+  cache = TRUE, fig.align = "center", fig.retina = 1, fig.width = 10,
+  fig.height = 7, out.width = "100%")
+```
+```{r}
+library(tidyverse)
+library(readr)
+library(janitor)
+library(here)
+library(urbnmapr)
+library(ggplot2)
+library(forcats)
+library(leaflet)
+library(tinytex)
+library(latexpdf)
+library(lubridate)
+library(patchwork)
+library(ggridges)
+library(highcharter)
+```
+```{r}
+load("C:/Users/alienivasion/OneDrive - Ohio University/Desktop/Final_project/Data/FARS2010/apv_2010_4.RData")
+
+load("C:/Users/alienivasion/OneDrive - Ohio University/Desktop/Final_project/Data/FARS2020/apv_2020_4.RData")
+```
+
+
+# Introduction.
+
+This project highlights accident patterns across the interstates between 2010 to 2020. The 2010 and 2020 Fatality Analysis Reporting System (FARS) data will be used to find patterns and answer questions like: what states and counties are the deadliest in terms of accidents involving fatalities? What causes of accidents dominate? How often is alcohol involved? Drugs? What days of the week are most common for accidents? what about the hour of the day when accidents happen most? Are accidents most common on weekends or on weekdays, and does the deadliest hour vary? what about Interstates? State routes? Which are the deadliest and safest?
+
+# Data Sources and Indicators.
+
+The Fatality Analysis Reporting System (FARS) is a nationwide census providing NHTSA, congress, and the American public yearly data regarding fatal injuries suffered in motor vehicle traffic crashes. Also, the FARS data contains useful information concerning road accidents across the 49 US states. The 2010 and 2020 data are chosen to find out changes in road accidents across a span of ten years. 
+
+# State Level Analysis.
+
+The chart below reflects a trend in road accidents within a ten year span. In 2010, the state with the most accident is Texas. while in 2020, California has the most accident.
+
+
+```{r}
+#Number of accidents in every state in the year 2010.
+apv_2010_4 %>% 
+  mutate(county_name = stringr::str_remove_all(county_name, "County| Parish")) %>% 
+mutate(hour = hour(date_time)) %>% 
+  relocate(
+    hour, .after = date_time
+  ) -> apv_2010_4
+
+apv_2010_4 %>% 
+  mutate(
+    month = month(
+      date_time, label = TRUE, abbr = TRUE
+      )) %>% relocate(
+        month, .after = date_time
+      )-> apv_2010_4
+
+apv_2010_4 %>% 
+  group_by(state_fips, state_name, day_of_week, date_time) %>%
+  summarize(
+number_of_crashes = sum(n_distinct(st_case))
+) -> stdf_10
+
+stdf_10 %>% 
+  group_by(state_name) %>% 
+  summarize(
+    total_crashes = sum(number_of_crashes, na.rm = TRUE)
+  ) -> tab_10
+
+tab_10 %>%
+ggplot() +
+geom_col(
+aes(
+y = fct_reorder(state_name, total_crashes),
+x = total_crashes,
+fill = state_name
+)) + theme(legend.position = 'hide') + labs(
+  x = "Number of Accidents in 2010", y = "States"
+  ) + scale_fill_viridis_d(option = "D") -> plot_01
+
+#Number of accidents in every state in the year 2020.
+apv_2020_4 %>% 
+  mutate(
+    county_name = stringr::str_remove_all(county_name, "County|Parish")
+    ) %>% mutate(hour = hour(date_time)) %>% relocate(
+    hour, .after = date_time
+  ) -> apv_2020_4
+
+apv_2020_4 %>% 
+  mutate(
+    month = month(
+      date_time, label = TRUE, abbr = TRUE
+      )) %>% relocate(
+        month, .after = date_time
+      ) -> apv_2020_4
+
+apv_2020_4 %>% group_by(
+  state_fips, state_name, day_of_week, date_time
+  ) %>% summarize(
+  number_of_crashes = sum(n_distinct(st_case))
+  ) -> stdf_20
+
+stdf_20 %>% 
+  group_by(state_name) %>% summarize(
+  total_crashes = sum(number_of_crashes, na.rm = TRUE)
+  ) -> tab_20
+
+tab_20 %>%
+ggplot() +
+geom_col(
+aes(
+y = fct_reorder(state_name, total_crashes),
+x = total_crashes,
+fill = state_name
+)) + theme(legend.position = 'hide') + labs(
+  x = "Number of Accidents in 2020",
+  y = "States"
+) + scale_fill_viridis_d(option = "D") -> plot_02
+
+(plot_01 | plot_02) + plot_annotation(
+  title = "Accident Occurrence",
+  subtitle = "In Every State in the US in 2010 and 2020.",
+  caption = "@david3ga"
+)
+```
+
+# Map Indicating Accident Areas in Texas and California.
+
+Below is a map indicating the accident areas in 2010 and 2020. In 2010, Texas has the most accidents, and the red dot highlights the exact areas where the accidents occurs. likewise in 2020, California has the most accidents, and the red dot highlights areas where the accidents occurs.
+
+```{r}
+apv_2010_4 %>%
+filter(latitude < 99.9999 & longitud < 999.9999) %>%
+filter(state_name == "Texas") %>% 
+  leaflet() %>%
+  setView(lat = 39.827079, lng = -102.554079, zoom = 4) %>%
+  addTiles() %>%
+  addCircleMarkers(
+    lat = ~ latitude,
+    lng = ~ longitud,
+    radius = 0.1,
+    color = "red",
+    opacity = 0.1
+    )
+
+apv_2020_4 %>%
+filter(latitude < 99.9999 & longitud < 999.9999) %>%
+filter(state_name == "California") %>% 
+  leaflet() %>%
+  setView(lat = 39.827079, lng = -102.554079, zoom = 4) %>%
+  addTiles() %>%
+  addCircleMarkers(
+    lat = ~ latitude,
+    lng = ~ longitud,
+    radius = 0.1,
+    color = "red",
+    opacity = 0.1
+    )
+```
+
+# County Level Analysis.
+
+This analysis highlights the top 30 counties with most accidents in 2010 and 2020. As shown in the chart, the top two counties with the most accidents in 2010, is still the same in 2020. However, Los Angeles and Jefferson county seem to have more accidents in 2020 than in 2010. In general, all the counties appear to have more accidents in 2020 than in 2010.
+
+```{r}
+#2010 data
+#Top 30 counties with the most accidents in 2010.
+
+apv_2010_4 %>%
+group_by(county_fips, county_name, day_of_week, date_time) %>%
+summarize(
+number_of_crashes = sum(n_distinct(st_case))
+) -> cdf_10
+
+cdf_10 %>% 
+  group_by(county_name) %>% 
+  summarize(
+    total_crashes = sum(number_of_crashes, na.rm = TRUE)
+  ) -> ctab_10
+
+ctab_10 %>%
+arrange(- total_crashes) %>%
+slice_head(n = 30) %>%
+ggplot() +
+geom_col(
+aes(
+y = fct_reorder(county_name, total_crashes),
+x = total_crashes,
+fill = county_name
+)) + theme(legend.position = 'hide') + labs(
+  x = "Number of Accidents in 2010", y = "Counties"
+) + scale_fill_viridis_d("D") -> plot_03
+
+#2020 data
+#Top 30 counties with the most accidents in 2020.
+
+apv_2020_4 %>% 
+  mutate( county_name = stringr::str_remove_all(county_name, " County| Parish") ) %>%
+group_by(county_fips, county_name, day_of_week, date_time) %>%
+summarize(
+number_of_crashes = sum(n_distinct(st_case))
+) -> cdf_20
+
+cdf_20 %>% 
+  group_by(county_name) %>% 
+  summarize(
+    total_crashes = sum(number_of_crashes, na.rm = TRUE)
+  ) -> ctab_20
+
+ctab_20 %>%
+arrange(- total_crashes) %>%
+slice_head(n = 30) %>%
+ggplot() +
+geom_col(
+aes(
+y = fct_reorder(county_name, total_crashes),
+x = total_crashes,
+fill = county_name
+)) + theme(legend.position = 'hide') + labs(
+  x = "Number of Accidents in 2020", y = "Counties"
+) + scale_fill_viridis_d("D") -> plot_04
+
+(plot_03 | plot_04) + plot_annotation(
+  title = "Top 30 Counties", 
+  subtitle = "With the Highest Number of Accidents in 2010 and 2020.",
+  caption = "@david3ga"
+)
+```
+
+# Alcohol Related Accidents
+
+The chart below shows the number of accidents that are cause by alcohol consumption in 2010 and 2020. It was not reported in an overwhelming majority of the accidents if alcohol was involved. However, they seem to be no difference in the number of accidents resulting from alcohol consumption from 2010 to 2020.
+
+```{r}
+#Accidents occurrence as a result of alcohol in 2010
+
+apv_2010_4 %>% 
+  group_by(
+    alcohol_involvement
+    ) %>% count() %>% 
+  ggplot() + geom_col(
+    aes(
+      y = fct_reorder(alcohol_involvement, n),
+      x = n,
+      fill = alcohol_involvement
+    )
+  ) + theme(legend.position = 'hide') + labs(
+  x = "Number of Accidents in 2010", 
+  y = "Accidents Caused by Alcohol",
+) + scale_fill_viridis_d("D") -> plot_05
+
+#Accidents occurrence as a result of alcohol in 2020
+
+apv_2020_4 %>% 
+  group_by(
+    alcohol_involvement
+    ) %>% count() %>% 
+  ggplot() + geom_col(
+    aes(
+      y = fct_reorder(alcohol_involvement, n),
+      x = n,
+      fill = alcohol_involvement
+    )
+  ) + theme(legend.position = 'hide') + labs(
+  x = "Number of Accidents in 2020",
+  y = "Accidents Caused by Alcohol"
+  ) + scale_fill_viridis_d("D") -> plot_06
+
+(plot_05 | plot_06) + plot_annotation(
+  title = "Alcohol Related Accident", 
+  subtitle = "In 2010 and 2020",
+  caption = "@david3ga"
+)
+```
+
+# Drug Related Accidents
+
+The chart below shows the number of accidents that are cause by drugs in 2010 and 2020. It was not reported in an overwhelming majority of the accidents if drugs were involved. However, they seem to be a slight increase in the accidents resulting from drug intake from 2010 to 2020.
+
+```{r}
+#Accidents occurrence as a result of drug use in 2010
+
+apv_2010_4 %>% 
+  group_by(
+    drug_involvement
+    ) %>% count() %>% 
+  ggplot() + geom_col(
+    aes(
+      y = fct_reorder(drug_involvement, n),
+      x = n,
+      fill = drug_involvement
+    )
+  ) + theme(legend.position = 'hide') + labs(
+  x = "Number of Accidents", 
+  y = "Accidents caused by Drug Use in 2010"
+) + scale_fill_viridis_d("D") -> plot_07
+
+#Accidents occurrence as a result of drug use in 2020
+
+apv_2020_4 %>% 
+  group_by(
+    drug_involvement
+    ) %>% count() %>% 
+  ggplot() + geom_col(
+    aes(
+      y = fct_reorder(drug_involvement, n),
+      x = n,
+      fill = drug_involvement
+    )
+  ) + theme(legend.position = 'hide') + labs(
+  x = "Number of Accidents", 
+  y = "Accidents caused by Drug Use in 2020",
+  ) + scale_fill_viridis_d("D") -> plot_08
+
+(plot_07 | plot_08) + plot_annotation(
+  title = "Drugs Related Accident", 
+  subtitle = "In 2010 and 2020",
+  caption = "@david3ga"
+)
+```
+
+# Gender
+
+The charts shows that men are more likely to be the victims of motor vehicle accidents than women. There is a substantial increase from 2010 to 2020 in accidents where the victims are male. In contrast to accidents where the victims are women, there is a slight increase. 
+
+```{r}
+#gender
+#2010
+
+apv_2010_4 %>% 
+  group_by(
+    gender
+    ) %>% count() %>% 
+  ggplot() + geom_col(
+    aes(
+      y = fct_reorder(gender, n),
+      x = n,
+      fill = gender
+    )
+  ) + theme(legend.position = 'hide') + labs(
+  x = "Number of Accident Victims in 2010", 
+  y = "Gender"
+) + scale_fill_viridis_d("D") -> plot_09
+
+#gender
+#2020
+
+apv_2020_4 %>% 
+  group_by(
+    gender
+    ) %>% count() %>% 
+  ggplot() + geom_col(
+    aes(
+      y = fct_reorder(gender, n),
+      x = n,
+      fill = gender
+    )
+  ) + theme(legend.position = 'hide') + labs(
+  x = "Number of Accident Victims in 2020", 
+  y = "Gender"
+) + scale_fill_viridis_d(option = "D") -> plot_010
+
+(plot_09 | plot_010) + plot_annotation(
+  title = "Gender More Likely to be Accident Victims", 
+  subtitle = "In 2010 and 2020",
+  caption = "@david3ga"
+)
+```
+
+# Weather Condition
+
+Surprisingly, most accidents occur when the weather is clear. Cloudy, rainy and snowy weather can obstruct driver visibility and result into accidents; however, an overwhelming majority of accidents occur when the weather is clear. Hence, we can deduce that weather does not play a huge role in motor vehicle accidents compared to drugs and alcohol
+
+```{r}
+apv_2010_4 %>% 
+  group_by(
+    weather_condition
+    ) %>% count() %>% 
+  ggplot() + geom_col(
+    aes(
+      y = fct_reorder(weather_condition, n),
+      x = n,
+      fill = weather_condition
+    )
+  ) + theme(legend.position = 'hide') + labs(
+  x = "Number of Incidents", 
+  y = "Weather Condition"
+) + scale_fill_viridis_d("D") -> plot_013
+
+
+apv_2020_4 %>% 
+  group_by(
+    weather_condition
+    ) %>% count() %>% 
+  ggplot() + geom_col(
+    aes(
+      y = fct_reorder(weather_condition, n),
+      x = n,
+      fill = weather_condition
+    )
+  ) + theme(legend.position = 'hide') + labs(
+  x = "Number of Incidents", 
+  y = "Weather Condition"
+) + scale_fill_viridis_d(option = "D") -> plot_014
+
+(plot_013 | plot_014) + plot_annotation(
+  title = "Weather Condition when Accident Occurs", 
+  subtitle = "In 2010 and 2020",
+  caption = "@david3ga"
+)
+```
+
+# Route
+
+Most accidents occur on the state highway as highlighted by the chart below. They have been a slight increase in state highway accidents from 2010 to 2020. In 2010 and 2020, accidents are more likely to occur at the state highway, local street municipality and U.S. highway. 
+
+```{r}
+apv_2010_4 %>% 
+  group_by(
+    route
+    ) %>% count() %>% 
+  ggplot() + geom_col(
+    aes(
+      y = fct_reorder(route, n),
+      x = n,
+      fill = route
+    )
+  ) + theme(legend.position = 'hide') + labs(
+  x = "Number of Incidents", 
+  y = "Route"
+) + scale_fill_viridis_d("D") -> plot_015
+
+#routes
+#2020
+
+apv_2020_4 %>% 
+  group_by(
+    route
+    ) %>% count() %>% 
+  ggplot() + geom_col(
+    aes(
+      y = fct_reorder(route, n),
+      x = n,
+      fill = route
+    )
+  ) + theme(legend.position = 'hide') + labs(
+  x = "Number of Incidents", 
+  y = "Routes"
+) + scale_fill_viridis_d(option = "D") -> plot_016
+
+(plot_015 | plot_016) + plot_annotation(
+  title = "Routes where Accidents Occurs", 
+  subtitle = "In 2010 and 2020",
+  caption = "@david3ga")
+```
+
+# Injuries Resulting From accidents
+
+An overwhelming majority of the accidents in 2010 and 2020, seem to result into fatal injuries. As shown in the chart, there is a slight increase in the number fatal injuries resulting from accidents in 2010 and 2020. Also, they were no apparent injuries detected in a substantial amount of accidents in 2010 and 2020.
+
+```{r}
+apv_2010_4 %>% 
+  group_by(
+    injury_severity
+    ) %>% count() %>% 
+  ggplot() + geom_col(
+    aes(
+      y = fct_reorder(injury_severity, n),
+      x = n,
+      fill = injury_severity
+    )
+  ) + theme(legend.position = 'hide') + labs(
+  x = "Number of Incidents", 
+  y = "Injury Severity"
+) + scale_fill_viridis_d("D") -> plot_017
+
+#injury severity
+#2020
+
+apv_2020_4 %>% 
+  group_by(
+    injury_severity
+    ) %>% count() %>% 
+  ggplot() + geom_col(
+    aes(
+      y = fct_reorder(injury_severity, n),
+      x = n,
+      fill = injury_severity
+    )
+  ) + theme(legend.position = 'hide') + labs(
+  x = "Number of Incidents", 
+  y = "Injury Severity"
+) + scale_fill_viridis_d(option = "D") -> plot_018
+
+(plot_017 | plot_018) + plot_annotation(
+  title = "Severity of the Injuries Sustained", 
+  subtitle = "In 2010 and 2020",
+  caption = "@david3ga")
+```
+
+# Day and Hour 2010
+
+The interactive chart below indicates the day and hour in which accidents occur the most in 2010. As shown, 2 in the morning on Saturday and Sunday, seems to be the time and day that accidents occur the most.
+
+```{r}
+apv_2010_4 %>%
+filter(!is.na(hour), !is.na(day_of_week)) %>%
+group_by(day_of_week, hour) %>%
+count(n_distinct(st_case)) %>%
+ungroup() %>%
+select(-3) -> tab01
+
+library(highcharter)
+
+fntltp <- JS("function(){
+return this.point.x + ' ' + this.series.yAxis.categories[this.point.y] + ': ' +
+Highcharts.numberFormat(this.point.value, 0);
+}")
+
+hchart(
+tab01,
+type = "heatmap",
+hcaes(
+x = hour,
+y = day_of_week,
+value = n
+)
+) %>%
+hc_colorAxis(
+stops = color_stops(10, viridisLite::magma(10, direction = -1)),
+type = "logarithmic"
+) %>%
+hc_xAxis(
+title = list(text = "The Hour"),
+reversed = FALSE,
+offset = -10,
+tickLength = 0,
+gridLineWidth = 0,
+minorGridLineWidth = 0,
+labels = list(style = list(fontSize = "12px"))
+) %>%
+hc_yAxis(
+title = list(text = "The Day of the Week"),
+reversed = TRUE,
+offset = -10,
+tickLength = 0,
+gridLineWidth = 0,
+minorGridLineWidth = 0,
+labels = list(style = list(fontSize = "12px"))
+) %>%
+hc_title(
+text = "Number of Accidents per Day of the Week and per Hour"
+) %>%
+hc_subtitle(
+text = "FARS 2010"
+) %>%
+hc_legend(
+layout = "vertical",
+verticalAlign = "bottom",
+align = "right",
+valueDecimals = 0
+) %>%
+hc_tooltip(
+formatter = fntltp
+)
+```
+
+# Day and Hour 2020
+
+In contrast to 2010, Friday at 9pm and Saturday at 6pm, seems to be the day and time that accidents occur the most in 2020
+
+```{r}
+apv_2020_4 %>%
+filter(!is.na(hour), !is.na(day_of_week)) %>%
+group_by(day_of_week, hour) %>%
+count(n_distinct(st_case)) %>%
+ungroup() %>%
+select(-3) -> tab02
+
+library(highcharter)
+
+fntltp <- JS("function(){
+return this.point.x + ' ' + this.series.yAxis.categories[this.point.y] + ': ' +
+Highcharts.numberFormat(this.point.value, 0);
+}")
+
+hchart(
+tab02,
+type = "heatmap",
+hcaes(
+x = hour,
+y = day_of_week,
+value = n
+)
+) %>%
+hc_colorAxis(
+stops = color_stops(10, viridisLite::magma(10, direction = -1)),
+type = "logarithmic"
+) %>%
+hc_xAxis(
+title = list(text = "The Hour"),
+reversed = FALSE,
+offset = -10,
+tickLength = 0,
+gridLineWidth = 0,
+minorGridLineWidth = 0,
+labels = list(style = list(fontSize = "12px"))
+) %>%
+hc_yAxis(
+title = list(text = "The Day of the Week"),
+reversed = TRUE,
+offset = -10,
+tickLength = 0,
+gridLineWidth = 0,
+minorGridLineWidth = 0,
+labels = list(style = list(fontSize = "12px"))
+) %>%
+hc_title(
+text = "Number of Accidents per Day of the Week and per Hour"
+) %>%
+hc_subtitle(
+text = "FARS 2020"
+) %>%
+hc_legend(
+layout = "vertical",
+verticalAlign = "bottom",
+align = "right",
+valueDecimals = 0
+) %>%
+hc_tooltip(
+formatter = fntltp
+)
+```
+
+# Month and Day 2010
+
+The interactive chart below indicates the month and day in which accidents occur the most in 2010. As shown, October appears to be the month with the most accidents, and Friday the 6th seems to be the worst day.  
+
+```{r}
+apv_2010_4 %>%
+filter(!is.na(day_of_week), !is.na(month)) %>%
+group_by(day_of_week, month) %>%
+count(n_distinct(st_case)) %>%
+ungroup() %>%
+select(-3) -> tab03
+
+fntltp <- JS("function(){
+return this.point.x + ' ' + this.series.yAxis.categories[this.point.y] + ': ' +
+Highcharts.numberFormat(this.point.value, 0);
+}")
+
+hchart(
+tab03,
+type = "heatmap",
+hcaes(
+x = day_of_week,
+y = month,
+value = n
+)
+) %>%
+hc_colorAxis(
+stops = color_stops(10, viridisLite::magma(10, direction = -1)),
+type = "logarithmic"
+) %>%
+hc_xAxis(
+title = list(text = "Day of Week"),
+reversed = FALSE,
+offset = -10,
+tickLength = 0,
+gridLineWidth = 0,
+minorGridLineWidth = 0,
+labels = list(style = list(fontSize = "12px"))
+) %>%
+hc_yAxis(
+title = list(text = "Month"),
+reversed = TRUE,
+offset = -10,
+tickLength = 0,
+gridLineWidth = 0,
+minorGridLineWidth = 0,
+labels = list(style = list(fontSize = "12px"))
+) %>%
+hc_title(
+text = "Number of Accidents per Month of Year and Day of Week"
+) %>%
+hc_subtitle(
+text = "FARS 2010"
+) %>%
+hc_legend(
+layout = "vertical",
+verticalAlign = "bottom",
+align = "right",
+valueDecimals = 0
+) %>%
+hc_tooltip(
+formatter = fntltp
+)
+```
+
+# Month and Day 2020
+
+In contrast to 2010, August appears to be the month with the most accidents, and Saturday the 6th seems to be the worst day. 
+
+```{r}
+apv_2020_4 %>%
+filter(!is.na(day_of_week), !is.na(month)) %>%
+group_by(day_of_week, month) %>%
+count(n_distinct(st_case)) %>%
+ungroup() %>%
+select(-3) -> tab04
+
+fntltp <- JS("function(){
+return this.point.x + ' ' + this.series.yAxis.categories[this.point.y] + ': ' +
+Highcharts.numberFormat(this.point.value, 0);
+}")
+
+hchart(
+tab04,
+type = "heatmap",
+hcaes(
+x = day_of_week,
+y = month,
+value = n
+)
+) %>%
+hc_colorAxis(
+stops = color_stops(10, viridisLite::magma(10, direction = -1)),
+type = "logarithmic"
+) %>%
+hc_xAxis(
+title = list(text = "Day of Week"),
+reversed = FALSE,
+offset = 0,
+tickLength = 0,
+gridLineWidth = 0,
+minorGridLineWidth = 0,
+labels = list(style = list(fontSize = "12px"))
+) %>%
+hc_yAxis(
+title = list(text = "Month"),
+reversed = TRUE,
+offset = 0,
+tickLength = 0,
+gridLineWidth = 0,
+minorGridLineWidth = 0,
+labels = list(style = list(fontSize = "12px"))
+) %>%
+hc_title(
+text = "Number of Accidents per Month of Year and Day of Week"
+) %>%
+hc_subtitle(
+text = "FARS 2020"
+) %>%
+hc_legend(
+layout = "vertical",
+verticalAlign = "bottom",
+align = "right",
+valueDecimals = 0
+) %>%
+hc_tooltip(
+formatter = fntltp
+)
+```
+
+# Conclusion
+
+In this analysis, i set out to find trends and patterns in motor vehicle accidents on the highway across America. listed below are my findings.
+
+- There is a significant increase in the number of motor vehicle accidents from 2010 to 2020. 
+- The analysis shows that drugs and alcohol plays a significant role in highway accidents across America. 
+- Men are twice more likely to be victims of motor vehicle accidents than women.
+- An overwhelming number of accidents tend to occur when the weather is clear. 
+- August and October are the Months with the most Accidents
+- Accidents seems to occur the most on Fridays, Saturdays, and Sundays.
+
+
+However, i was unable to find out if accidents occur more in minority communities. Does social economic status have any relationship with accident occurrence. Are people living below the poverty line more likely to be accident victims than wealthy people. 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
